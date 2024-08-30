@@ -33,24 +33,32 @@ def limit_call_depth(n: int):
     """
     n = 0 means not allowed recursive call
     """
+
     def wrapper(fn: typing.Callable):
-        if not hasattr(fn, '_depth'):
-            fn._depth = 0
 
         @functools.wraps(fn)
         def _inner(*args, **kwargs):
-            if fn._depth > n:
+            ismethod = len(args) > 0 and not isinstance(args[0], type) and hasattr(args[0].__class__, fn.__name__)
+            if not ismethod and not hasattr(fn, '__call_depth'):
+                fn.__call_depth = 0
+            if ismethod and not hasattr(args[0], '__call_depth'):
+                args[0].__call_depth = 0
+            if (not ismethod and fn.__call_depth > n) or (ismethod and args[0].__call_depth > n):
                 raise RuntimeError("call depth exceed %d" % n)
-
-            fn._depth += 1
+            if ismethod:
+                args[0].__call_depth += 1
+            else:
+                fn.__call_depth += 1
             try:
                 return fn(*args, **kwargs)
             finally:
-                fn._depth -= 1
-        
-        _inner._fn = fn
+                if ismethod:
+                    args[0].__call_depth -= 1
+                else:
+                    fn.__call_depth -= 1
+
         return _inner
-    
+
     return wrapper
 
 
